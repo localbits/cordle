@@ -2,7 +2,7 @@
 
 String* json_get_value_by_key(const char* key, char* json)
 {
-    char* delimiters = " {\":\",}";
+    char* delimiters = "{\":\",}";
     char* token = strtok(json, delimiters);
 
     while (token != NULL && strcmp(token, key) != 0) {
