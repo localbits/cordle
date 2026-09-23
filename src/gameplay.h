@@ -4,6 +4,7 @@
 #include "types.h"
 #include "url_utils.h"
 #include "json_utils.h"
+#include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>

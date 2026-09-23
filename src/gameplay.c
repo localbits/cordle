@@ -39,19 +39,11 @@ static ParsedWordVector create_parsed_word_vector(u8 size)
     return vector;
 }
 
-static s32 first_occurrence_in_array(char* s, char key)
+static void reset_parsed_word_vector(ParsedWordVector* vector)
 {
-    s32 occurrence = -1;
-    u32 strLen = strlen(s);
-
-    for (u32 i = 0; i < strLen; ++i) {
-        if (s[i] == key) {
-            occurrence = i;
-            return occurrence;
-        }
+    for (u32 i = 0; i < vector->size; ++i) {
+        vector->items[i] = COLOR_RESET;
     }
-
-    return -1;
 }
 
 static void free_parsed_word_vector(ParsedWordVector* vector)
@@ -59,20 +51,41 @@ static void free_parsed_word_vector(ParsedWordVector* vector)
     free(vector->items);
 }
 
-static u32 hash_char(char c)
+static u8 hash_char(char c)
 {
     return tolower(c) - '0' - 49;
 }
 
-// TODO: Reimplement guess parsing logic
 static void parse_word_guess(ParsedWordVector* vector, char* guess, char* solution)
 {
+    reset_parsed_word_vector(vector);
+    bool parsedLetters[26] = {false};
 
+    u32 guessLength = strlen(guess);
+    u32 solutionLength = strlen(solution);
+
+    for (u32 i = 0; i < guessLength; ++i) {
+        char c = guess[i];
+        u8 guessIdx = hash_char(c);
+        if (parsedLetters[guessIdx]) {
+            continue;
+        }
+
+        parsedLetters[guessIdx] = true;
+
+        for (u32 j = 0; j < solutionLength; ++j) {
+            if (c == solution[j] && i == j) {
+                vector->items[i] = COLOR_CORRECT;
+            } else if (c == solution[j] && i != j) {
+                vector->items[i] = COLOR_HINT;
+            }
+        }
+    }
 }
 
 static char* retrieve_daily_wordle_url(void)
 {
-    static char dailyUrl[256];
+    static char url[256];
 
     time_t now = time(NULL);
     struct tm* currentTime = localtime(&now);
@@ -81,14 +94,14 @@ static char* retrieve_daily_wordle_url(void)
     
     strftime(formattedDate, sizeof(formattedDate), "%Y-%m-%d", currentTime);
 
-    snprintf(dailyUrl, sizeof(dailyUrl), "https://www.nytimes.com/svc/wordle/v2/%s.json", formattedDate);
+    snprintf(url, sizeof(url), "https://www.nytimes.com/svc/wordle/v2/%s.json", formattedDate);
 
-    return dailyUrl;
+    return url;
 }
 
 static char* retrieve_arbitrary_wordle_url(u16 weekDay, u16 month, u16 year)
 {
-    static char dailyUrl[256];
+    static char url[256];
     char formattedDate[11];
 
     struct tm* customTime = {0};
@@ -97,59 +110,79 @@ static char* retrieve_arbitrary_wordle_url(u16 weekDay, u16 month, u16 year)
     customTime->tm_year = year;
 
     strftime(formattedDate, sizeof(formattedDate), "%Y-%m-%d", customTime);
-    snprintf(dailyUrl, sizeof(dailyUrl), "https://www.nytimes.com/svc/wordle/v2/%s.json", formattedDate);
+    snprintf(url, sizeof(url), "https://www.nytimes.com/svc/wordle/v2/%s.json", formattedDate);
 
-    return dailyUrl;
+    return url;
 }
 
-// TODO: Fix date so that we dont get a wordle from 1984 
-static char* retrieve_random_wordle_url(u32 seed)
+static u32 days_to_seconds(u32 days)
 {
-    time_t now = time(NULL);
-    struct tm* currentTime = localtime(&now);
+    return days * (60 * 60 * 24);
+}
 
+static u32 seconds_to_days(u32 seconds)
+{
+    return seconds / (60 * 60 * 24);
+}
+
+static struct tm get_random_wordle_time(u32 seed)
+{
     srand(seed);
 
-    u32 rng = rand();
+    time_t now = time(NULL);
 
-    u16 randomDay = rng % 32;
-    u16 randomMonth = rng % 12;
-    u16 randomYear = rng % (currentTime->tm_year + 1900);
+    struct tm startingWordleTime = {0};
+    startingWordleTime.tm_mday = 6;
+    startingWordleTime.tm_year = 2021 - 1900;
+    startingWordleTime.tm_wday = 19;
 
-    struct tm* randomTime = {0};
-    randomTime->tm_mday = randomDay;
-    randomTime->tm_year = randomYear;
-    randomTime->tm_mon = randomMonth;
+    time_t startingTime = mktime(&startingWordleTime);
     
-    static char dailyUrl[256];
-    char formattedDate[11];
-   
-    strftime(formattedDate, sizeof(formattedDate), "%Y-%m-%d", randomTime);
-    snprintf(dailyUrl, sizeof(dailyUrl), "https://www.nytimes.com/svc/wordle/v2/%s.json", formattedDate);
+    const u32 secondsElapsed = (u32)difftime(now, startingTime);
+    const u32 elapsedDays = seconds_to_days(secondsElapsed) + 1;
+    const u32 randomNumber = rand();
+    const u32 randomDayIdx = randomNumber % elapsedDays;
 
-    return dailyUrl;
+    const time_t randomTime = startingTime + days_to_seconds(randomDayIdx);
+
+    struct tm randomWordleTime = {0};
+    localtime_r(&randomTime, &randomWordleTime);
+
+    return randomWordleTime;
 }
 
-static u8* retrieve_user_arbitrary_date(void)
+static char* retrieve_random_wordle_url(u32 seed)
 {
-    static u8 arbitraryDate[3] = {0};
+    struct tm randomWordleTime = get_random_wordle_time(seed);
+    static char url[256] = {0};
+    char formattedDate[11] = {0};
+
+    strftime(formattedDate, sizeof(formattedDate), "%Y-%m-%d", &randomWordleTime);
+    snprintf(url, sizeof(url), "https://www.nytimes.com/svc/wordle/v2/%s.json", formattedDate);
+
+    return url;
+}
+
+static u16* retrieve_user_arbitrary_date(void)
+{
+    static u16 arbitraryDate[3] = {0};
     printf("Enter desired day: \n");
-    scanf("%c", &arbitraryDate[0]);
+    scanf("%" SCNd16,  &arbitraryDate[0]);
 
     printf("Enter desired month: \n");
-    scanf("%c", &arbitraryDate[1]);
+    scanf("%" SCNd16,  &arbitraryDate[1]);
 
     printf("Enter desired year: \n");
-    scanf("%c", &arbitraryDate[2]);
+    scanf("%" SCNd16,  &arbitraryDate[2]);
 
     return arbitraryDate;
 }
 
-static GameModes retrieve_user_game_mode(void)
+static u32 retrieve_user_game_mode(void)
 {
-    u32 gameMode;
-    scanf("%d", &gameMode);
-    return gameMode;
+    u32 mode;
+    scanf("%d", &mode);
+    return mode;
 }
 
 static char* retrieve_user_guess(void)
@@ -188,6 +221,13 @@ static void display_game_menu(void)
     printf("Enter your desired mode: ");
 }
 
+static void display_wordle_date_info(char* json)
+{
+    char* date = json_get_value_by_key("print_date", json);
+    printf("--- Playing wordle from: %s ---\n", date);
+    free(date);
+}
+
 static void display_game_info(u16 remainingGuesses)
 {
     printf("You have %d/6 remaining attempts left\n", remainingGuesses);
@@ -197,7 +237,7 @@ static void display_game_info(u16 remainingGuesses)
 static void display_game_over_screen(char* solution)
 {
     printf("Game over\n");
-    printf("The word was: %s", solution);
+    printf("The word was: %s\n", solution);
 }
 
 static void display_game_won_screen(void)
@@ -220,7 +260,7 @@ static bool game_lost(u8 remainingGuesses)
 static char* retrieve_game_mode_wordle_url(GameModes mode)
 {
     char* url = NULL;
-    u8* arbitraryDate = NULL;
+    u16* arbitraryDate = NULL;
 
     switch(mode) {
         case GAME_MODE_DAILY:
@@ -241,18 +281,28 @@ static char* retrieve_game_mode_wordle_url(GameModes mode)
     return url;
 }
 
-static char* retrieve_wordle_solution(char* url)
+static char* retrieve_wordle_json(const char* url)
 {
     MemoryStruct chunk = init_mem_chunk(1);
+
     if (make_curl_get_request(url, &chunk) != CURLE_OK) {
+        free_mem_chunk(&chunk);
         fprintf(stderr, "Failed to retrieve wordle solution\nn");
         return NULL;
     }
 
-    char* solution = json_get_value_by_key("solution", chunk.memory);
-    assert(solution != NULL);
+    static char json[256] = {0};
+    strncpy(json, chunk.memory, sizeof(json));
+
     free_mem_chunk(&chunk);
 
+    return json;
+}
+
+static char* retrieve_wordle_solution(char* json)
+{
+    char* solution = json_get_value_by_key("solution", json);
+    assert(solution != NULL);
     return solution;
 }
 
@@ -281,21 +331,31 @@ void game_loop(void)
     u16 maxGuesses = 6;
     char* guess = NULL;
     char* url = retrieve_game_mode_wordle_url(mode);
-    char* solution = retrieve_wordle_solution(url);
+    char* json = retrieve_wordle_json(url);
+    char* solution = retrieve_wordle_solution(json);
 
-    do {
+    display_wordle_date_info(json);
+
+    while (maxGuesses > 0) {
         display_game_info(maxGuesses);
+
         guess = retrieve_user_guess();
         parse_word_guess(&vector, guess, solution);
         print_parsed_guess(guess, &vector);
+
+        if (game_won(solution, guess)) {
+            display_game_won_screen();
+            break;
+        }
+
         maxGuesses--;
+
         if (game_lost(maxGuesses)) {
             display_game_over_screen(solution);
-            return;
+            break;
         }
-    } while (!game_won(solution, guess));
+    }
 
-    display_game_won_screen();
     free_parsed_word_vector(&vector);
     free(solution);
 }

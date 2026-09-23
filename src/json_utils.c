@@ -7,7 +7,7 @@ char* json_get_value_by_key(const char* key, const char* json)
     assert(jsonCopy != NULL);
 
     strncpy(jsonCopy, json, jsonLen + 1);
-    
+
     char* delimiters = "{\":\",}";
     char* token = strtok(jsonCopy, delimiters);
 
@@ -28,5 +28,7 @@ char* json_get_value_by_key(const char* key, const char* json)
 
     value[tokenLen] = '\0';
 
+    free(jsonCopy);
+    
     return value;
 }
