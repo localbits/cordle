@@ -278,6 +278,7 @@ static char* retrieve_game_mode_wordle_url(GameModes mode)
             break;
         case GAME_MODE_ARBITRARY:
             arbitraryDate = retrieve_user_arbitrary_date();
+            flush_stdin();
             clear_console();
             url = retrieve_arbitrary_wordle_url(arbitraryDate[0], arbitraryDate[1], arbitraryDate[2]);
             break;
