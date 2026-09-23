@@ -18,9 +18,9 @@ void free_mem_chunk(MemoryStruct* chunk)
     free(chunk->memory);
 }
 
-static u32 mem_callback(void* contents, u32 size, u32 nmemb, void* userData)
+static u32 mem_callback(void* contents, size_t size, size_t nmemb, void* userData)
 {
-    u32 realSize = size * nmemb;
+    size_t realSize = size * nmemb;
     MemoryStruct* mem = (MemoryStruct*)userData;
 
     mem->memory = realloc(mem->memory, mem->size + realSize + 1);
