@@ -96,7 +96,7 @@ static char* get_formatted_wordle_url(struct tm time)
     char date[11] = {0};
 
     strftime(date, sizeof(date), "%Y-%m-%d", &time);
-    snprintf(url, sizeof(url), "https://www.nytimes.com/svc/wordle/v2/%s.json", date);
+    snprintf(url, sizeof(url), "https://www.nytimes.com/svc/wordle/v2/%s./json", date);
 
     return url;
 }
@@ -160,8 +160,11 @@ static struct tm get_random_wordle_time(u32 seed)
     const time_t randomTime = startingTime + days_to_seconds(randomDayIdx);
 
     struct tm randomWordleTime = {0};
-    localtime_r(&randomTime, &randomWordleTime);
-
+    #ifndef _WIN32
+        localtime_r(&randomTime, &randomWordleTime);
+    #else 
+        localtime_s(&randomWordleTime, &randomTime);
+    #endif
     return randomWordleTime;
 }
 
@@ -362,7 +365,7 @@ void game_loop(void)
 {
     GameModes mode = game_menu();
     u8 vector[WORD_LENGTH] = {0};
-    u16 maxGuesses = 6;
+    u16 maxGuesses = MAX_GUESSES;
     char* guess = NULL;
     char* url = retrieve_game_mode_wordle_url(mode);
     char* json = retrieve_wordle_json(url);
