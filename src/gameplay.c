@@ -1,7 +1,7 @@
 #include "gameplay.h"
 
 #define WORD_LENGTH 5
-#define MAX_GUESSES 6
+#define MAX_GUESSES 69
 
 typedef enum {
     COLOR_RESET = 0,
@@ -96,7 +96,7 @@ static char* get_formatted_wordle_url(struct tm time)
     char date[11] = {0};
 
     strftime(date, sizeof(date), "%Y-%m-%d", &time);
-    snprintf(url, sizeof(url), "https://www.nytimes.com/svc/wordle/v2/%s./json", date);
+    snprintf(url, sizeof(url), "https://www.nytimes.com/svc/wordle/v2/%s.json", date);
 
     return url;
 }
@@ -265,7 +265,7 @@ static void display_wordle_date_info(char* json)
 
 static void display_game_info(u16 remainingGuesses)
 {
-    printf("You have %d/6 remaining attempts left\n", remainingGuesses);
+    printf("You have %d/%d remaining attempts left\n", remainingGuesses, MAX_GUESSES);
     printf("Type your guess: ");
 }
 
