@@ -39,6 +39,20 @@ static u8 hash_char(char c)
     return tolower(c) - 'a';
 }
 
+static void char_frequency_in_word(char* word, u8* vector)
+{
+    for (u32 i = 0; i < WORD_LENGTH; ++i) {
+        u8 count = 0;
+        u8 charIdx = hash_char(word[i]);
+        for (u32 j = 0; j < WORD_LENGTH; ++j) {
+            if (word[i] == word[j]) {
+                count++;
+            }
+        }
+        vector[charIdx] = count;
+    }
+}
+
 static void reset_parsed_word_vector(u8* vector)
 {
     memset(vector, COLOR_RESET, WORD_LENGTH);
@@ -47,21 +61,29 @@ static void reset_parsed_word_vector(u8* vector)
 static void parse_word_guess(u8* parsedWordVector, char* guess, char* solution)
 {
     reset_parsed_word_vector(parsedWordVector);
-    bool parsedLetters[26] = {false};
+
+    u8 frequencySolution[26] = {0};
+    u8 parsedGuessLetters[26] = {0};
+
+    char_frequency_in_word(solution, frequencySolution);
 
     for (u32 i = 0; i < WORD_LENGTH; ++i) {
-        char c = guess[i];
-        u8 guessIdx = hash_char(c);
-        if (parsedLetters[guessIdx]) {
+        u8 charIdx = hash_char(guess[i]);
+        if (guess[i] == solution[i]) {
+            parsedWordVector[i] = COLOR_CORRECT;
+            parsedGuessLetters[charIdx]++;
+        }
+    }
+
+    for (u32 i = 0; i < WORD_LENGTH; ++i) {
+        u8 charIdx = hash_char(guess[i]);
+        if (parsedGuessLetters[charIdx] >= frequencySolution[charIdx]) {
             continue;
         }
 
-        parsedLetters[guessIdx] = true;
-
         for (u32 j = 0; j < WORD_LENGTH; ++j) {
-            if (c == solution[j] && i == j) {
-                parsedWordVector[i] = COLOR_CORRECT;
-            } else if (c == solution[j] && i != j) {
+            if (guess[i] == solution[j] && parsedWordVector[i] == COLOR_RESET) {
+                parsedGuessLetters[charIdx]++;
                 parsedWordVector[i] = COLOR_HINT;
             }
         }
