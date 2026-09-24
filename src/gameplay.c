@@ -1,7 +1,7 @@
 #include "gameplay.h"
 
 #define WORD_LENGTH 5
-#define MAX_GUESSES 69
+#define MAX_GUESSES 6
 
 typedef enum {
     COLOR_RESET = 0,
