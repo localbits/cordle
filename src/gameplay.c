@@ -82,10 +82,16 @@ static void parse_word_guess(u8* parsedWordVector, char* guess, char* solution)
         }
 
         for (u32 j = 0; j < WORD_LENGTH; ++j) {
-            if (guess[i] == solution[j] && parsedWordVector[i] == COLOR_RESET) {
-                parsedGuessLetters[charIdx]++;
-                parsedWordVector[i] = COLOR_HINT;
+            if (guess[i] != solution[j]) {
+                continue;
             }
+
+            if (parsedWordVector[i] != COLOR_RESET) {
+                continue;
+            }
+
+            parsedGuessLetters[charIdx]++;
+            parsedWordVector[i] = COLOR_HINT;
         }
     }
 }
