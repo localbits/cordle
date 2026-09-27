@@ -1,7 +1,9 @@
 #include "gameplay.h"
+#include "file_utils.h"
 
 #define WORD_LENGTH 5
 #define MAX_GUESSES 6
+#define MAX_WORDLIST_PATH_LENGTH 256
 
 typedef enum {
     COLOR_RESET = 0,
@@ -14,6 +16,7 @@ typedef enum {
     GAME_MODE_DAILY = 1,
     GAME_MODE_RANDOM,
     GAME_MODE_ARBITRARY,
+    GAME_MODE_OFFLINE,
     GAME_MODE_COUNT
 } GameModes;
 
@@ -190,17 +193,20 @@ static bool is_arbitrary_date_valid(u16* date)
 {
     struct tm startingWordleTime = get_starting_wordle_time();
 
+
     struct tm arbitraryDateTime = {0};
     arbitraryDateTime.tm_mday = date[0];
     arbitraryDateTime.tm_mon = date[1];
     arbitraryDateTime.tm_year = date[2] - 1900;
 
     time_t wordleStart = mktime(&startingWordleTime);
-    time_t ArbitraryDateStart = mktime(&arbitraryDateTime);
+    time_t arbitraryDateStart = mktime(&arbitraryDateTime);
+    time_t now = time(NULL);
 
-    s32 offset = (s32)difftime(ArbitraryDateStart, wordleStart);
+    s32 pastOffset = (s32)difftime(arbitraryDateStart, wordleStart);
+    s32 futureOffset = (s32)difftime(now ,arbitraryDateStart);
 
-    return offset >= 0;
+    return (pastOffset >= 0) && (futureOffset >= 0);
 }
 
 static u16* retrieve_user_arbitrary_date(void)
@@ -259,6 +265,7 @@ static void display_game_menu(void)
     printf("1: Daily\n");
     printf("2: Random\n");
     printf("3: Arbitrary date\n");
+    printf("4: Offline from local wordlist\n");
     printf("Enter your desired mode: ");
 }
 
@@ -267,6 +274,83 @@ static void display_wordle_date_info(char* json)
     char* date = json_get_value_by_key("print_date", json);
     printf("--- Playing wordle from: %s ---\n", date);
     free(date);
+}
+
+static char* retrieve_game_mode_wordle_url(GameModes mode)
+{
+    char* url = NULL;
+    u16* arbitraryDate = NULL;
+
+    switch(mode) {
+        case GAME_MODE_DAILY:
+            url = retrieve_daily_wordle_url();
+            break;
+        case GAME_MODE_ARBITRARY:
+            arbitraryDate = retrieve_user_arbitrary_date();
+            flush_stdin();
+            clear_console();
+            url = retrieve_arbitrary_wordle_url(arbitraryDate[0], arbitraryDate[1], arbitraryDate[2]);
+            break;
+        case GAME_MODE_RANDOM:
+            url = retrieve_random_wordle_url(time(NULL));
+            break;
+        case GAME_MODE_OFFLINE:
+            break;
+        case GAME_MODE_COUNT:
+            break;
+    }
+
+    assert(url != NULL);
+    return url;
+}
+
+static char* retrieve_wordle_json(const char* url)
+{
+    MemoryStruct chunk = init_mem_chunk(1);
+
+    if (make_curl_get_request(url, &chunk) != CURLE_OK) {
+        free_mem_chunk(&chunk);
+        fprintf(stderr, "Failed to retrieve wordle solution\nn");
+        return NULL;
+    }
+
+    static char json[256] = {0};
+    strncpy(json, chunk.memory, sizeof(json));
+
+    free_mem_chunk(&chunk);
+
+    return json;
+}
+
+static char* retrieve_online_wordle_solution(char* json)
+{
+    char* solution = json_get_value_by_key("solution", json);
+    assert(solution != NULL);
+    return solution;
+}
+
+static char* retrieve_local_wordlist(void)
+{
+    static char wordlist[MAX_WORDLIST_PATH_LENGTH] = {0};
+    printf("Type the word list file name: ");
+    fgets(wordlist, sizeof(wordlist), stdin);
+    u32 wordlistLength = strlen(wordlist);
+
+    if (wordlist[wordlistLength - 1] == '\n') {
+        wordlist[wordlistLength - 1] = '\0';
+    }
+
+    return wordlist;
+}
+
+static char* retrieve_offline_solution(void)
+{
+    char* filePath = retrieve_local_wordlist();
+    char* buffer = write_file_into_buffer(filePath, "rb");
+    u32 seed = time(NULL);
+    char* solution = pick_random_word_from_buffer(buffer, seed);
+    free(buffer);
+    return solution;
 }
 
 static void display_game_info(u16 remainingGuesses)
@@ -298,87 +382,9 @@ static bool game_lost(u8 remainingGuesses)
     return remainingGuesses <= 0;
 }
 
-static char* retrieve_game_mode_wordle_url(GameModes mode)
+static void game_loop(char* solution, u8* vector, u16 maxGuesses)
 {
-    char* url = NULL;
-    u16* arbitraryDate = NULL;
-
-    switch(mode) {
-        case GAME_MODE_DAILY:
-            url = retrieve_daily_wordle_url();
-            break;
-        case GAME_MODE_ARBITRARY:
-            arbitraryDate = retrieve_user_arbitrary_date();
-            flush_stdin();
-            clear_console();
-            url = retrieve_arbitrary_wordle_url(arbitraryDate[0], arbitraryDate[1], arbitraryDate[2]);
-            break;
-        case GAME_MODE_RANDOM:
-            url = retrieve_random_wordle_url(time(NULL));
-            break;
-        case GAME_MODE_COUNT:
-            break;
-    }
-
-    assert(url != NULL);
-    return url;
-}
-
-static char* retrieve_wordle_json(const char* url)
-{
-    MemoryStruct chunk = init_mem_chunk(1);
-
-    if (make_curl_get_request(url, &chunk) != CURLE_OK) {
-        free_mem_chunk(&chunk);
-        fprintf(stderr, "Failed to retrieve wordle solution\nn");
-        return NULL;
-    }
-
-    static char json[256] = {0};
-    strncpy(json, chunk.memory, sizeof(json));
-
-    free_mem_chunk(&chunk);
-
-    return json;
-}
-
-static char* retrieve_wordle_solution(char* json)
-{
-    char* solution = json_get_value_by_key("solution", json);
-    assert(solution != NULL);
-    return solution;
-}
-
-GameModes game_menu(void)
-{
-    GameModes chosenMode;
-    display_game_menu();
-    chosenMode = retrieve_user_game_mode();
-
-    while (chosenMode < 1 || chosenMode > 3) {
-        printf("\nInvalid game option entered\n");
-        display_game_menu();
-        chosenMode = retrieve_user_game_mode();
-    }
-
-    clear_console();
-    flush_stdin();
-
-    return chosenMode;
-}
-
-void game_loop(void)
-{
-    GameModes mode = game_menu();
-    u8 vector[WORD_LENGTH] = {0};
-    u16 maxGuesses = MAX_GUESSES;
     char* guess = NULL;
-    char* url = retrieve_game_mode_wordle_url(mode);
-    char* json = retrieve_wordle_json(url);
-    char* solution = retrieve_wordle_solution(json);
-
-    display_wordle_date_info(json);
-
     while (maxGuesses > 0) {
         display_game_info(maxGuesses);
 
@@ -398,6 +404,53 @@ void game_loop(void)
             break;
         }
     }
+}
 
+static void offline_game(u8* vector, u16 maxGuesses) 
+{
+    char* solution = retrieve_offline_solution();
+    game_loop(solution, vector, maxGuesses);
+}
+
+static void online_game(GameModes mode, u8* vector, u16 maxGuesses)
+{
+    char* url = retrieve_game_mode_wordle_url(mode);
+    char* json = retrieve_wordle_json(url);
+    char* solution = retrieve_online_wordle_solution(json);
+    display_wordle_date_info(json);
+    game_loop(solution, vector, maxGuesses);
+    free(json);
     free(solution);
+}
+
+GameModes game_menu(void)
+{
+    GameModes chosenMode;
+    display_game_menu();
+    chosenMode = retrieve_user_game_mode();
+
+    while (chosenMode < 1 || chosenMode > GAME_MODE_COUNT) {
+        printf("\nInvalid game option entered\n");
+        display_game_menu();
+        chosenMode = retrieve_user_game_mode();
+    }
+
+    clear_console();
+    flush_stdin();
+
+    return chosenMode;
+}
+
+void game_init(void)
+{
+    GameModes mode = game_menu();
+    u8 vector[WORD_LENGTH] = {0};
+    u16 maxGuesses = MAX_GUESSES;
+
+    if (mode == GAME_MODE_OFFLINE) {
+        offline_game(vector, maxGuesses);
+        return;
+    }
+
+    online_game(mode, vector, maxGuesses);
 }

@@ -14,6 +14,6 @@
 #include "url_utils.h"
 #include "json_utils.h"
 
-void game_loop(void);
+void game_init(void);
 
 #endif // GAMEPLAY_H

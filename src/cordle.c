@@ -2,6 +2,6 @@
 
 int main(void)
 {
-    game_loop();
+    game_init();
     return 0;
 }

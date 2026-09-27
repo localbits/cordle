@@ -5,6 +5,7 @@
 char* write_file_into_buffer(const char* filePath, const char* openingMode)
 {
     FILE* file = fopen(filePath, openingMode);
+
     if (file == NULL) {
         fprintf(stderr, "Failed to open file at: %s\n", filePath);
         return NULL;
@@ -19,6 +20,7 @@ char* write_file_into_buffer(const char* filePath, const char* openingMode)
     buffer[fileByteSize] = '\0';
 
     fread(buffer, sizeof(char), fileByteSize, file);
+    fclose(file);
 
     return buffer;
 }
@@ -43,7 +45,7 @@ static u32 word_count_in_buffer(char* buffer)
 
 char* pick_random_word_from_buffer(char* buffer, u32 seed)
 {
-    static char word[WORD_LENGTH] = {0};
+    static char word[WORD_LENGTH + 1] = {0};
     srand(seed);
 
     u32 wordCount = word_count_in_buffer(buffer);
@@ -62,9 +64,13 @@ char* pick_random_word_from_buffer(char* buffer, u32 seed)
         rightPtr++;
     }
 
-    for (u32 i = rightPtr, j = 0; buffer[i] != '\n'; ++i, ++j) {
+    u32 j = 0;
+    for (u32 i = rightPtr; buffer[i] != '\n'; ++i) {
         word[j] = buffer[i];
+        j++;
     }
+
+    word[j] = '\0';
 
     return word;
 }
