@@ -193,7 +193,6 @@ static bool is_arbitrary_date_valid(u16* date)
 {
     struct tm startingWordleTime = get_starting_wordle_time();
 
-
     struct tm arbitraryDateTime = {0};
     arbitraryDateTime.tm_mday = date[0];
     arbitraryDateTime.tm_mon = date[1];
@@ -419,7 +418,6 @@ static void online_game(GameModes mode, u8* vector, u16 maxGuesses)
     char* solution = retrieve_online_wordle_solution(json);
     display_wordle_date_info(json);
     game_loop(solution, vector, maxGuesses);
-    free(json);
     free(solution);
 }
 
