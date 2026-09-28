@@ -427,8 +427,9 @@ GameModes game_menu(void)
     display_game_menu();
     chosenMode = retrieve_user_game_mode();
 
-    while (chosenMode < 1 || chosenMode > GAME_MODE_COUNT) {
-        printf("\nInvalid game option entered\n");
+    while (chosenMode < GAME_MODE_DAILY || chosenMode >= GAME_MODE_COUNT) {
+        clear_console();
+        printf("Invalid game option entered\n");
         display_game_menu();
         chosenMode = retrieve_user_game_mode();
     }
