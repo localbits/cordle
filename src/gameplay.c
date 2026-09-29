@@ -19,6 +19,11 @@ typedef enum {
     GAME_MODE_COUNT
 } GameModes;
 
+typedef enum {
+    GAME_DIFFICULTY_NORMAL = 1,
+    GAME_DIFFICULTY_HARD
+} GameDifficulty;
+
 static const char* colors[COLOR_COUNT] = {
     "\033[0m",
     "\033[32m",
@@ -232,13 +237,6 @@ static u16* retrieve_user_arbitrary_date(void)
     return arbitraryDate;
 }
 
-static u32 retrieve_user_game_mode(void)
-{
-    u32 mode;
-    scanf("%d", &mode);
-    return mode;
-}
-
 static char* retrieve_user_guess(void)
 {
     static char guess[WORD_LENGTH + 1] = {0};
@@ -265,6 +263,27 @@ static void display_game_menu(void)
     printf("3: Arbitrary date\n");
     printf("4: Offline from local wordlist\n");
     printf("Enter your desired mode: ");
+}
+
+static u8 retrieve_user_game_mode(void)
+{
+    u8 mode = 0;
+    scanf("%" SCNd8, &mode);
+    return mode;
+}
+
+static void display_difficulty_menu(void)
+{
+    printf("Select your desired game difficulty: \n");
+    printf("1- Normal\n");
+    printf("2- Hard mode\n");
+}
+
+static u8 retrieve_game_difficulty(void)
+{
+   u8 difficulty = 0;
+   scanf("%" SCNd8, &difficulty);
+   return difficulty;
 }
 
 static void display_wordle_date_info(char* json)
@@ -390,13 +409,13 @@ static void game_loop(char* solution, u8* vector, u16 maxGuesses)
     }
 }
 
-static void offline_game(u8* vector, u16 maxGuesses)
+static void offline_game(u8* vector, u16 maxGuesses, GameDifficulty difficulty)
 {
     char* solution = retrieve_offline_solution();
     game_loop(solution, vector, maxGuesses);
 }
 
-static void online_game(GameModes mode, u8* vector, u16 maxGuesses)
+static void online_game(GameModes mode, u8* vector, u16 maxGuesses, GameDifficulty difficulty)
 {
     char* url = retrieve_game_mode_wordle_url(mode);
     char* json = retrieve_wordle_json(url);
@@ -408,9 +427,8 @@ static void online_game(GameModes mode, u8* vector, u16 maxGuesses)
 
 GameModes game_menu(void)
 {
-    GameModes chosenMode;
     display_game_menu();
-    chosenMode = retrieve_user_game_mode();
+    GameModes chosenMode = retrieve_user_game_mode();
 
     while (chosenMode < GAME_MODE_DAILY || chosenMode >= GAME_MODE_COUNT) {
         clear_console();
@@ -425,16 +443,36 @@ GameModes game_menu(void)
     return chosenMode;
 }
 
+GameDifficulty game_difficulty_menu(void)
+{
+    display_difficulty_menu();
+    GameDifficulty difficulty = retrieve_game_difficulty();
+
+    while (difficulty < GAME_DIFFICULTY_NORMAL || difficulty > GAME_DIFFICULTY_HARD) {
+        clear_console();
+        printf("Invalid difficulty chosen\n");
+        display_difficulty_menu();
+        difficulty = retrieve_game_difficulty();
+    }
+
+    clear_console();
+    flush_stdin();
+
+    return difficulty;
+}
+
 void game_init(void)
 {
     GameModes mode = game_menu();
+    GameDifficulty difficulty = retrieve_game_difficulty();
+
     u8 vector[WORD_LENGTH] = {0};
     u16 maxGuesses = MAX_GUESSES;
 
     if (mode == GAME_MODE_OFFLINE) {
-        offline_game(vector, maxGuesses);
+        offline_game(vector, maxGuesses, difficulty);
         return;
     }
 
-    online_game(mode, vector, maxGuesses);
+    online_game(mode, vector, maxGuesses, difficulty);
 }
