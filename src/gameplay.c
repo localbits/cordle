@@ -1,9 +1,8 @@
 #include "gameplay.h"
-#include "file_utils.h"
 
 #define WORD_LENGTH 5
 #define MAX_GUESSES 6
-#define MAX_WORDLIST_PATH_LENGTH 256
+#define DEFAULT_WORDLIST_FILENAME "wordlist.txt"
 
 typedef enum {
     COLOR_RESET = 0,
@@ -146,7 +145,7 @@ static struct tm get_starting_wordle_time(void)
 {
     return (struct tm){
         .tm_mday = 6,
-        .tm_year = 2021 - 1900,                     
+        .tm_year = 2021 - 1900,
         .tm_wday = 19
     };
 }
@@ -160,7 +159,7 @@ static struct tm get_random_wordle_time(u32 seed)
     struct tm startingWordleTime = get_starting_wordle_time();
 
     time_t startingTime = mktime(&startingWordleTime);
-    
+
     const u32 secondsElapsed = (u32)difftime(now, startingTime);
     const u32 elapsedDays = seconds_to_days(secondsElapsed) + 1;
     const u32 randomNumber = rand();
@@ -171,7 +170,7 @@ static struct tm get_random_wordle_time(u32 seed)
     struct tm randomWordleTime = {0};
     #ifndef _WIN32
         localtime_r(&randomTime, &randomWordleTime);
-    #else 
+    #else
         localtime_s(&randomWordleTime, &randomTime);
     #endif
     return randomWordleTime;
@@ -328,23 +327,9 @@ static char* retrieve_online_wordle_solution(char* json)
     return solution;
 }
 
-static char* retrieve_local_wordlist(void)
-{
-    static char wordlist[MAX_WORDLIST_PATH_LENGTH] = {0};
-    printf("Type the word list file name: ");
-    fgets(wordlist, sizeof(wordlist), stdin);
-    u32 wordlistLength = strlen(wordlist);
-
-    if (wordlist[wordlistLength - 1] == '\n') {
-        wordlist[wordlistLength - 1] = '\0';
-    }
-
-    return wordlist;
-}
-
 static char* retrieve_offline_solution(void)
 {
-    char* filePath = retrieve_local_wordlist();
+    char* filePath = DEFAULT_WORDLIST_FILENAME;
     char* buffer = write_file_into_buffer(filePath, "rb");
     u32 seed = time(NULL);
     char* solution = pick_random_word_from_buffer(buffer, seed);
@@ -405,7 +390,7 @@ static void game_loop(char* solution, u8* vector, u16 maxGuesses)
     }
 }
 
-static void offline_game(u8* vector, u16 maxGuesses) 
+static void offline_game(u8* vector, u16 maxGuesses)
 {
     char* solution = retrieve_offline_solution();
     game_loop(solution, vector, maxGuesses);

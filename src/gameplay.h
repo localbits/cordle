@@ -13,6 +13,7 @@
 #include "types.h"
 #include "url_utils.h"
 #include "json_utils.h"
+#include "file_utils.h"
 
 void game_init(void);
 

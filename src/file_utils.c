@@ -39,7 +39,7 @@ static u32 word_count_in_buffer(char* buffer)
     if (buffer[bufferSize - 1] != '\n') {
         wordCount++;
     }
-    
+
     return wordCount;
 }
 
